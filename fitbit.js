@@ -172,8 +172,8 @@ function refreshFoodDailyValues() {
   doc.getRange("b1").setValue("calories");
   doc.getRange("c1").setValue("carbs");
   doc.getRange("d1").setValue("fat");
-  doc.getRange("e1").setValue("fiber");
-  doc.getRange("f1").setValue("protein");
+  doc.getRange("e1").setValue("protein");
+  doc.getRange("f1").setValue("fiber");
   doc.getRange("g1").setValue("sodium");
   doc.getRange("h1").setValue("water");
   
@@ -200,8 +200,8 @@ function refreshFoodDailyValues() {
       doc.getRange("b" + (2 + p)).setValue(o.summary.calories);
       doc.getRange("c" + (2 + p)).setValue(o.summary.carbs);
       doc.getRange("d" + (2 + p)).setValue(o.summary.fat);
-      doc.getRange("e" + (2 + p)).setValue(o.summary.fiber);
-      doc.getRange("f" + (2 + p)).setValue(o.summary.protein);
+      doc.getRange("e" + (2 + p)).setValue(o.summary.protein);
+      doc.getRange("f" + (2 + p)).setValue(o.summary.fiber);
       doc.getRange("g" + (2 + p)).setValue(o.summary.sodium);
       doc.getRange("h" + (2 + p)).setValue(o.summary.water);
     } catch (exception) {
