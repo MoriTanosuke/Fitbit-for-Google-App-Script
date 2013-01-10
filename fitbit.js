@@ -35,6 +35,42 @@ var LOGGABLES = [ "activities/log/steps", "activities/log/distance",
     "sleep/minutesAsleep", "sleep/minutesAwake", "sleep/awakeningsCount",
     "body/weight", "body/bmi", "body/fat", ];
 
+var PERIODS = [
+  '1d',
+  '7d',
+  '30d',
+  '1w',
+  '1m',
+  '3m',
+  '6m',
+  '1y',
+  'max',
+];
+
+function period2days(period) {
+  switch(period) {
+    case '1d':
+      return 1;
+    case '7d':
+      return 7;
+    case '30d':
+      return 30;
+    case '1w':
+      return 7;
+    case '1m':
+      return 30;
+    case '3m':
+      return 90;
+    case '6m':
+      return 180;
+    case '1y':
+      return 365;
+    default:
+      // default is 30 days
+      return 30;
+  }
+}
+
 function refreshTimeSeries() {
   // if the user has never configured ask him to do it here
   if (!isConfigured()) {
@@ -103,6 +139,73 @@ function refreshTimeSeries() {
         // set the value index index
         index++;
       }
+    }
+  }
+}
+
+function refreshFoodDailyValues() {
+  // if the user has never configured ask him to do it here
+  if (!isConfigured()) {
+    renderFitbitConfigurationDialog();
+    return;
+  }
+  
+  // "today" for sheetname
+  var d1 = new Date();
+  var dateString = d1.getFullYear() + "-" + d1.getMonth()+1 + "-" + d1.getDate();
+
+  // amount of days to load
+  var FOODS_PERIOD = period2days(getPeriod());
+  Logger.log('Refreshing daily food values for ' + FOODS_PERIOD + ' days...');
+  var user = authorize();
+  var doc = SpreadsheetApp.getActiveSpreadsheet();
+  // create a new sheet
+  var SHEET_TITLE = "Daily " + dateString + " " + FOODS_PERIOD + " days";
+  var n = doc.getSheetByName(SHEET_TITLE) || doc.insertSheet(SHEET_TITLE);
+  Logger.log("Created " + n);
+  n.activate();
+  n.setFrozenRows(1);
+  n.setFrozenColumns(1);
+  
+  // header rows
+  doc.getRange("a1").setValue("date");
+  doc.getRange("b1").setValue("calories");
+  doc.getRange("c1").setValue("carbs");
+  doc.getRange("d1").setValue("fat");
+  doc.getRange("e1").setValue("fiber");
+  doc.getRange("f1").setValue("protein");
+  doc.getRange("g1").setValue("sodium");
+  doc.getRange("h1").setValue("water");
+  
+  // configure json loader
+  var options = {
+    "oAuthServiceName" : "fitbit",
+    "oAuthUseToken" : "always",
+    "method" : "GET",
+    "headers": {
+        "Accept-Language": user.foodsLocale
+    }
+  };
+  
+  // load data for the last FOODS_PERIOD days
+  for(var p = 0;p < FOODS_PERIOD;p++) {
+    var d1 = new Date();
+    var d2 = new Date(d1.getFullYear(), d1.getMonth(), (d1.getDate() - FOODS_PERIOD + p))
+    var dateString = d2.getFullYear() + "-" + (d2.getMonth()+1) + "-" + d2.getDate();
+    try {
+      var result = UrlFetchApp.fetch("http://api.fitbit.com/1/user/-/"
+                                     + "foods" + "/log/date/" + dateString + ".json", options);
+      var o = Utilities.jsonParse(result.getContentText());
+      doc.getRange("a" + (2 + p)).setValue(d2);
+      doc.getRange("b" + (2 + p)).setValue(o.summary.calories);
+      doc.getRange("c" + (2 + p)).setValue(o.summary.carbs);
+      doc.getRange("d" + (2 + p)).setValue(o.summary.fat);
+      doc.getRange("e" + (2 + p)).setValue(o.summary.fiber);
+      doc.getRange("f" + (2 + p)).setValue(o.summary.protein);
+      doc.getRange("g" + (2 + p)).setValue(o.summary.sodium);
+      doc.getRange("h" + (2 + p)).setValue(o.summary.water);
+    } catch (exception) {
+      Logger.log(exception);
     }
   }
 }
@@ -201,7 +304,7 @@ function renderFitbitConfigurationDialog() {
   var doc = SpreadsheetApp.getActiveSpreadsheet();
   var app = UiApp.createApplication().setTitle("Configure Fitbit");
   app.setStyleAttribute("padding", "10px");
-  app.setHeight('0.9');
+  app.setHeight('330');
 
   var helpLabel = app
       .createLabel("From here you will configure access to fitbit -- Just supply your own"
@@ -242,15 +345,9 @@ function renderFitbitConfigurationDialog() {
   var period = app.createListBox(false).setId("period").setName("period");
   period.setVisibleItemCount(1);
   // add valid timeperiods
-  period.addItem('1d');
-  period.addItem('7d');
-  period.addItem('30d');
-  period.addItem('1w');
-  period.addItem('1m');
-  period.addItem('3m');
-  period.addItem('6m');
-  period.addItem('1y');
-  period.addItem('max');
+  for ( var p in PERIODS) {
+    period.addItem(PERIODS[p]);
+  }
   listPanel.setWidget(4, 0, app.createLabel("Period:"));
   listPanel.setWidget(4, 1, period);
 
@@ -295,6 +392,9 @@ function onOpen() {
   var menuEntries = [ {
     name : "Refresh fitbit Time Data",
     functionName : "refreshTimeSeries"
+  }, {
+    name: "Refresh daily values",
+    functionName : "refreshFoodDailyValues"
   }, {
     name : "Configure",
     functionName : "renderFitbitConfigurationDialog"
